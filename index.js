@@ -1,51 +1,50 @@
+// ✅ BACKEND MODIFIÉ (Node.js / Express)
 const express = require("express");
 const app = express();
 const cors = require("cors");
-require("dotenv").config();
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Crée une session de paiement Stripe
+app.get("/", (req, res) => {
+  res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
+});
+
 app.post("/create-checkout-session", async (req, res) => {
-  const { email, amount, description } = req.body;
+  const { email, amount, description, clientLink } = req.body;
 
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [{
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: "Commande HenryAgency",
-            description: description,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: "Commande HenryAgency",
+              description: `${description}`,
+            },
+            unit_amount: amount,
           },
-          unit_amount: amount,
+          quantity: 1,
         },
-        quantity: 1,
-      }],
+      ],
       customer_email: email,
-      success_url: "https://henryagency.webflow.io/success",  // à modifier si nécessaire
-      cancel_url: "https://henryagency.webflow.io/cancel",    // à modifier si nécessaire
+      metadata: {
+        lien_videos: clientLink || "aucun lien"
+      },
+      success_url: "https://henryagency.webflow.io/success",
+      cancel_url: "https://henryagency.webflow.io/cancel",
     });
 
     res.json({ id: session.id });
   } catch (error) {
-    console.error("Erreur Stripe:", error);
+    console.error("Erreur Stripe :", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Route test pour vérifier que le backend tourne
-app.get("/", (req, res) => {
-  res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
-});
-
-// Écoute le port donné par Render
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Serveur lancé sur le port ${PORT}`);
-});
+const PORT = process.env.PORT || 4242;
+app.listen(PORT, () => console.log(`Serveur en cours sur le port ${PORT}`));
