@@ -1,12 +1,14 @@
 const express = require("express");
 const app = express();
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
+// Crée une session de paiement Stripe
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description } = req.body;
 
@@ -18,16 +20,16 @@ app.post("/create-checkout-session", async (req, res) => {
         price_data: {
           currency: "eur",
           product_data: {
-            name: "Commande YumUp",
-            description: description
+            name: "Commande HenryAgency",
+            description: description,
           },
-          unit_amount: amount
+          unit_amount: amount,
         },
-        quantity: 1
+        quantity: 1,
       }],
       customer_email: email,
-      success_url: "https://tonsite.com/success", // à remplacer
-      cancel_url: "https://tonsite.com/cancel"    // à remplacer
+      success_url: "https://henryagency.webflow.io/success",  // à modifier si nécessaire
+      cancel_url: "https://henryagency.webflow.io/cancel",    // à modifier si nécessaire
     });
 
     res.json({ id: session.id });
@@ -37,6 +39,13 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("✅ Serveur lancé sur le port 3000");
+// Route test pour vérifier que le backend tourne
+app.get("/", (req, res) => {
+  res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
+});
+
+// Écoute le port donné par Render
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Serveur lancé sur le port ${PORT}`);
 });
