@@ -1,19 +1,23 @@
-// ✅ BACKEND COMPLET Stripe + Email (Node.js / Express)
 const express = require("express");
-const app = express();
 const cors = require("cors");
 const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
 const nodemailer = require("nodemailer");
 
+const app = express();
+
+// ✅ Middleware spécifique pour Stripe Webhook
+app.use("/webhook", express.raw({ type: "application/json" }));
+
+// ✅ Middleware général pour toutes les autres routes
 app.use(cors());
 app.use(express.json());
 
-// ✅ CONFIG EMAIL
+// ✅ Configuration de l'envoi d'email
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "tr33fle@gmail.com", // remplace par ton email
-    pass: "vicsilfkmhftzhle " // remplace par le mot de passe généré par Google
+    user: "tr33fle@gmail.com", // Ton email
+    pass: "vicsilfkmhftzhle"    // Mot de passe spécifique Gmail
   }
 });
 
@@ -32,19 +36,19 @@ function sendConfirmationEmail(email, description, clientLink) {
 
   transporter.sendMail(mailOptions, function (error, info) {
     if (error) {
-      console.error("Erreur d'envoi d'email :", error);
+      console.error("❌ Erreur d'envoi d'email :", error);
     } else {
       console.log("✅ Email envoyé :", info.response);
     }
   });
 }
 
-// ✅ ROUTE TEST
+// ✅ Route de test simple
 app.get("/", (req, res) => {
   res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
 });
 
-// ✅ ROUTE STRIPE
+// ✅ Création de la session de paiement
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -58,7 +62,7 @@ app.post("/create-checkout-session", async (req, res) => {
             currency: "eur",
             product_data: {
               name: "Commande HenryAgency",
-              description: `${description}`,
+              description: description
             },
             unit_amount: amount,
           },
@@ -73,16 +77,42 @@ app.post("/create-checkout-session", async (req, res) => {
       cancel_url: "https://henryagency.webflow.io/cancel",
     });
 
-    // ✅ Envoi de l'email juste après création de la session
-    sendConfirmationEmail(email, description, clientLink);
-
     res.json({ id: session.id });
   } catch (error) {
-    console.error("Erreur Stripe :", error);
+    console.error("❌ Erreur Stripe :", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ✅ LANCEMENT DU SERVEUR
+// ✅ Webhook Stripe pour déclencher l'email APRÈS paiement réussi
+const endpointSecret = "whsec_XXXXXX"; // 🔁 Remplace ici par ta vraie clé webhook Stripe
+
+app.post("/webhook", (request, response) => {
+  const sig = request.headers["stripe-signature"];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
+  } catch (err) {
+    console.error("❌ Erreur de vérification webhook :", err.message);
+    return response.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const email = session.customer_email;
+    const description = session.display_items?.[0]?.custom?.name || "Commande";
+    const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
+
+    sendConfirmationEmail(email, description, clientLink);
+    console.log("✅ Paiement confirmé — email envoyé à", email);
+  }
+
+  response.status(200).json({ received: true });
+});
+
+// ✅ Lancement du serveur
 const PORT = process.env.PORT || 4242;
-app.listen(PORT, () => console.log(`✅ Serveur Stripe + Email lancé sur le port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Serveur lancé sur le port ${PORT}`);
+});
