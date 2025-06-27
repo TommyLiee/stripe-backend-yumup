@@ -99,7 +99,7 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // 🔄 Webhook Stripe
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
 
 app.post("/webhook", (req, res) => {
   const sig = req.headers["stripe-signature"];
