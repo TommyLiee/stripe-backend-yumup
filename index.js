@@ -71,7 +71,9 @@ app.post("/create-checkout-session", async (req, res) => {
       ],
       customer_email: email,
       metadata: {
-        lien_videos: clientLink || "aucun lien"
+  lien_videos: clientLink || "aucun lien",
+  description: description || "Commande"
+}
       },
       success_url: "https://henryagency.webflow.io/success",
       cancel_url: "https://henryagency.webflow.io/cancel",
@@ -101,7 +103,7 @@ app.post("/webhook", (request, response) => {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const email = session.customer_email;
-    const description = session.display_items?.[0]?.custom?.name || "Commande";
+    const description = session.metadata?.description || "Commande";
     const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
 
     sendConfirmationEmail(email, description, clientLink);
