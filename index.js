@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
 const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
+const Order = require("./models/Order");
 
 const app = express();
 
@@ -13,7 +15,12 @@ app.use("/webhook", express.raw({ type: "application/json" }));
 app.use(cors());
 app.use(express.json());
 
-// 📧 Configuration de Nodemailer
+// 🔌 Connexion MongoDB (clé en dur)
+mongoose.connect("mongodb+srv://admin:admin123@henryagency.nrvabdb.mongodb.net/?retryWrites=true&w=majority&appName=HenryAgency")
+  .then(() => console.log("✅ Connecté à MongoDB"))
+  .catch((err) => console.error("❌ Erreur MongoDB :", err));
+
+// 📧 Nodemailer (clé en dur)
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -22,7 +29,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// ✅ Fonction d'envoi d'e-mail
+// ✅ Fonction pour envoyer l'e-mail de confirmation
 function sendConfirmationEmail(email, description, clientLink) {
   const mailOptions = {
     from: '"HenryAgency" <tr33fle@gmail.com>',
@@ -47,10 +54,10 @@ function sendConfirmationEmail(email, description, clientLink) {
 
 // 🔁 Route test
 app.get("/", (req, res) => {
-  res.send("Le backend Stripe de HenryAgency fonctionne ✅");
+  res.send("✅ Backend Stripe & Mongo opérationnel !");
 });
 
-// 💳 Création de la session de paiement
+// 💳 Création session Stripe
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -58,19 +65,17 @@ app.post("/create-checkout-session", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: "Commande HenryAgency",
-              description
-            },
-            unit_amount: amount
+      line_items: [{
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: "Commande HenryAgency",
+            description
           },
-          quantity: 1
-        }
-      ],
+          unit_amount: amount
+        },
+        quantity: 1
+      }],
       customer_email: email,
       metadata: {
         lien_videos: clientLink || "aucun lien",
@@ -87,7 +92,7 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// 🔄 Webhook Stripe
+// 🧲 Webhook Stripe
 const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
 
 app.post("/webhook", (req, res) => {
@@ -97,28 +102,40 @@ app.post("/webhook", (req, res) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
-    console.error("❌ Erreur de vérification webhook :", err.message);
+    console.error("❌ Erreur Webhook :", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-
     const email = session.customer_email;
     const description = session.metadata?.description || "Commande";
     const clientLink = session.metadata?.lien_videos || "aucun lien";
+    const total = session.amount_total ? session.amount_total / 100 : 0;
 
-    // 📬 Envoie de l'e-mail
     sendConfirmationEmail(email, description, clientLink);
 
-    console.log("✅ Paiement confirmé — email envoyé à", email);
+    const newOrder = new Order({
+      email,
+      total,
+      date: new Date(),
+      status: "payée",
+      details: {
+        lien_videos: clientLink,
+        description
+      }
+    });
+
+    newOrder.save()
+      .then(() => console.log("✅ Commande enregistrée dans MongoDB"))
+      .catch((err) => console.error("❌ Échec enregistrement Mongo :", err));
   }
 
   res.status(200).json({ received: true });
 });
 
-// 🚀 Lancement du serveur
-const PORT = process.env.PORT || 4242;
+// 🚀 Serveur
+const PORT = 4242;
 app.listen(PORT, () => {
   console.log(`🚀 Serveur lancé sur le port ${PORT}`);
 });
