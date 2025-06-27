@@ -85,7 +85,7 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // ✅ Webhook Stripe pour déclencher l'email APRÈS paiement réussi
-const endpointSecret = "whsec_XXXXXX"; // 🔁 Remplace ici par ta vraie clé webhook Stripe
+const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82"; // 🔁 Remplace ici par ta vraie clé webhook Stripe
 
 app.post("/webhook", (request, response) => {
   const sig = request.headers["stripe-signature"];
