@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Fonction pour envoyer l'email
+// Fonction pour envoyer l'email avec description formatée
 function sendConfirmationEmail(email, description, clientLink) {
   const mailOptions = {
     from: '"HenryAgency" <tr33fle@gmail.com>',
@@ -29,7 +29,7 @@ function sendConfirmationEmail(email, description, clientLink) {
     subject: "🎉 Confirmation de commande - HenryAgency",
     html: `
       <h2>Merci pour ta commande !</h2>
-      <p><strong>Détail :</strong> ${description}</p>
+      <p><strong>Détail :</strong><br>${description.replace(/\n/g, "<br>")}</p>
       <p><strong>Lien de dépôt des fichiers :</strong> ${clientLink || "Non renseigné"}</p>
       <p>Nous te contacterons rapidement si nous avons besoin de précisions.<br>Merci pour ta confiance 🙌</p>
     `
@@ -63,7 +63,7 @@ app.post("/create-checkout-session", async (req, res) => {
             currency: "eur",
             product_data: {
               name: "Commande HenryAgency",
-              description: description // ✅ visible sur la page Stripe
+              description: description // Affiché sur la page Stripe
             },
             unit_amount: amount
           },
