@@ -5,14 +5,14 @@ const nodemailer = require("nodemailer");
 
 const app = express();
 
-// ✅ Middleware spécifique pour Stripe Webhook
+// Middleware spécifique pour Stripe Webhook
 app.use("/webhook", express.raw({ type: "application/json" }));
 
-// ✅ Middleware général pour les autres routes
+// Middleware général
 app.use(cors());
 app.use(express.json());
 
-// ✅ Config envoi d’email
+// Configuration du transporteur email
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -21,6 +21,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Fonction pour envoyer l'email
 function sendConfirmationEmail(email, description, clientLink) {
   const mailOptions = {
     from: '"HenryAgency" <tr33fle@gmail.com>',
@@ -43,12 +44,12 @@ function sendConfirmationEmail(email, description, clientLink) {
   });
 }
 
-// ✅ Route de test
+// Route de test
 app.get("/", (req, res) => {
   res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
 });
 
-// ✅ Création de session de paiement Stripe
+// Création de la session de paiement
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -61,13 +62,13 @@ app.post("/create-checkout-session", async (req, res) => {
           price_data: {
             currency: "eur",
             product_data: {
-              name: "Commande HenryAgency"
-              // ❗️ NE PAS METTRE de description ici, Stripe ne le renvoie pas au webhook
+              name: "Commande HenryAgency",
+              description: description // ✅ visible sur la page Stripe
             },
-            unit_amount: amount,
+            unit_amount: amount
           },
-          quantity: 1,
-        },
+          quantity: 1
+        }
       ],
       customer_email: email,
       metadata: {
@@ -85,18 +86,18 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// ✅ Webhook Stripe pour email après paiement
-const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82"; // 🔁 À remplacer par ta vraie clé si tu changes
+// Webhook Stripe
+const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
 
-app.post("/webhook", (request, response) => {
-  const sig = request.headers["stripe-signature"];
+app.post("/webhook", (req, res) => {
+  const sig = req.headers["stripe-signature"];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
     console.error("❌ Erreur de vérification webhook :", err.message);
-    return response.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === "checkout.session.completed") {
@@ -112,10 +113,10 @@ app.post("/webhook", (request, response) => {
     console.log("✅ Paiement confirmé — email envoyé à", email);
   }
 
-  response.status(200).json({ received: true });
+  res.status(200).json({ received: true });
 });
 
-// ✅ Lancement du serveur
+// Lancement du serveur
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => {
   console.log(`✅ Serveur lancé sur le port ${PORT}`);
