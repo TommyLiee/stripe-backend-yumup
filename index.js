@@ -1,18 +1,29 @@
+// 🌐 Chargement des variables d'environnement
+require("dotenv").config();
+
+// 📦 Imports
 const express = require("express");
 const cors = require("cors");
-const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // sécurisé via .env
 const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
+const Order = require("./models/Order"); // Ton modèle de commande
 
 const app = express();
 
-// Middleware spécifique pour Stripe Webhook
+// ⚠️ Stripe Webhook a besoin du body brut
 app.use("/webhook", express.raw({ type: "application/json" }));
 
-// Middleware général
+// 🌍 Middlewares globaux
 app.use(cors());
 app.use(express.json());
 
-// Configuration du transporteur email
+// 🔌 Connexion à MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Connecté à MongoDB"))
+  .catch((err) => console.error("❌ Erreur MongoDB :", err));
+
+// 📧 Configuration de Nodemailer
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -21,7 +32,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Fonction pour envoyer l'email avec description formatée
+// ✅ Fonction d'envoi d'e-mail
 function sendConfirmationEmail(email, description, clientLink) {
   const mailOptions = {
     from: '"HenryAgency" <tr33fle@gmail.com>',
@@ -44,12 +55,12 @@ function sendConfirmationEmail(email, description, clientLink) {
   });
 }
 
-// Route de test
+// 🔁 Route test
 app.get("/", (req, res) => {
-  res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
+  res.send("Le backend Stripe de HenryAgency fonctionne ✅");
 });
 
-// Création de la session de paiement
+// 💳 Création de la session de paiement
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -63,7 +74,7 @@ app.post("/create-checkout-session", async (req, res) => {
             currency: "eur",
             product_data: {
               name: "Commande HenryAgency",
-              description: description // Affiché sur la page Stripe
+              description
             },
             unit_amount: amount
           },
@@ -86,8 +97,8 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// Webhook Stripe
-const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
+// 🔄 Webhook Stripe
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 app.post("/webhook", (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -103,21 +114,35 @@ app.post("/webhook", (req, res) => {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
-    console.log("📦 Metadata reçue :", session.metadata);
-
     const email = session.customer_email;
     const description = session.metadata?.description || "Commande";
-    const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
+    const clientLink = session.metadata?.lien_videos || "aucun lien";
 
+    // 📬 Envoie de l'e-mail
     sendConfirmationEmail(email, description, clientLink);
-    console.log("✅ Paiement confirmé — email envoyé à", email);
+
+    // 💾 Création de la commande en base de données
+    const newOrder = new Order({
+      email,
+      total: session.amount_total / 100,
+      date: new Date(),
+      status: "payée",
+      details: {
+        lien_videos: clientLink,
+        description
+      }
+    });
+
+    newOrder.save()
+      .then(() => console.log("✅ Commande enregistrée dans MongoDB"))
+      .catch((err) => console.error("❌ Erreur enregistrement commande :", err));
   }
 
   res.status(200).json({ received: true });
 });
 
-// Lancement du serveur
+// 🚀 Lancement du serveur
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => {
-  console.log(`✅ Serveur lancé sur le port ${PORT}`);
+  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
 });
