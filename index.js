@@ -8,16 +8,16 @@ const app = express();
 // ✅ Middleware spécifique pour Stripe Webhook
 app.use("/webhook", express.raw({ type: "application/json" }));
 
-// ✅ Middleware général pour toutes les autres routes
+// ✅ Middleware général pour les autres routes
 app.use(cors());
 app.use(express.json());
 
-// ✅ Configuration de l'envoi d'email
+// ✅ Config envoi d’email
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "tr33fle@gmail.com", // Ton email
-    pass: "vicsilfkmhftzhle"    // Mot de passe spécifique Gmail
+    user: "tr33fle@gmail.com",
+    pass: "vicsilfkmhftzhle"
   }
 });
 
@@ -34,7 +34,7 @@ function sendConfirmationEmail(email, description, clientLink) {
     `
   };
 
-  transporter.sendMail(mailOptions, function (error, info) {
+  transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
       console.error("❌ Erreur d'envoi d'email :", error);
     } else {
@@ -43,12 +43,12 @@ function sendConfirmationEmail(email, description, clientLink) {
   });
 }
 
-// ✅ Route de test simple
+// ✅ Route de test
 app.get("/", (req, res) => {
   res.send("Le backend Stripe de HenryAgency fonctionne ! ✅");
 });
 
-// ✅ Création de la session de paiement
+// ✅ Création de session de paiement Stripe
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -56,13 +56,13 @@ app.post("/create-checkout-session", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-            line_items: [
+      line_items: [
         {
           price_data: {
             currency: "eur",
             product_data: {
               name: "Commande HenryAgency"
-              // ❌ Ne pas mettre description ici, Stripe l'ignore dans le webhook
+              // ❗️ NE PAS METTRE de description ici, Stripe ne le renvoie pas au webhook
             },
             unit_amount: amount,
           },
@@ -74,10 +74,8 @@ app.post("/create-checkout-session", async (req, res) => {
         lien_videos: clientLink || "aucun lien",
         description: description || "Commande"
       },
-
-      },
       success_url: "https://henryagency.webflow.io/success",
-      cancel_url: "https://henryagency.webflow.io/cancel",
+      cancel_url: "https://henryagency.webflow.io/cancel"
     });
 
     res.json({ id: session.id });
@@ -87,13 +85,13 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// ✅ Webhook Stripe pour déclencher l'email APRÈS paiement réussi
-const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82"; // 🔁 Remplace ici par ta vraie clé webhook Stripe
+// ✅ Webhook Stripe pour email après paiement
+const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82"; // 🔁 À remplacer par ta vraie clé si tu changes
 
 app.post("/webhook", (request, response) => {
   const sig = request.headers["stripe-signature"];
-
   let event;
+
   try {
     event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
   } catch (err) {
@@ -102,18 +100,17 @@ app.post("/webhook", (request, response) => {
   }
 
   if (event.type === "checkout.session.completed") {
-  const session = event.data.object;
+    const session = event.data.object;
 
-  console.log("📦 Metadata reçue :", session.metadata); // 👈 AJOUT ICI
+    console.log("📦 Metadata reçue :", session.metadata);
 
-  const email = session.customer_email;
-  const description = session.metadata?.description || "Commande";
-  const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
+    const email = session.customer_email;
+    const description = session.metadata?.description || "Commande";
+    const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
 
-  sendConfirmationEmail(email, description, clientLink);
-  console.log("✅ Paiement confirmé — email envoyé à", email);
-}
-
+    sendConfirmationEmail(email, description, clientLink);
+    console.log("✅ Paiement confirmé — email envoyé à", email);
+  }
 
   response.status(200).json({ received: true });
 });
