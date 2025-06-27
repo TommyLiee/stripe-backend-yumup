@@ -56,13 +56,13 @@ app.post("/create-checkout-session", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [
+            line_items: [
         {
           price_data: {
             currency: "eur",
             product_data: {
-              name: "Commande HenryAgency",
-              description: description
+              name: "Commande HenryAgency"
+              // ❌ Ne pas mettre description ici, Stripe l'ignore dans le webhook
             },
             unit_amount: amount,
           },
@@ -71,9 +71,10 @@ app.post("/create-checkout-session", async (req, res) => {
       ],
       customer_email: email,
       metadata: {
-  lien_videos: clientLink || "aucun lien",
-  description: description || "Commande"
-}
+        lien_videos: clientLink || "aucun lien",
+        description: description || "Commande"
+      },
+
       },
       success_url: "https://henryagency.webflow.io/success",
       cancel_url: "https://henryagency.webflow.io/cancel",
@@ -101,14 +102,18 @@ app.post("/webhook", (request, response) => {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const email = session.customer_email;
-    const description = session.metadata?.description || "Commande";
-    const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
+  const session = event.data.object;
 
-    sendConfirmationEmail(email, description, clientLink);
-    console.log("✅ Paiement confirmé — email envoyé à", email);
-  }
+  console.log("📦 Metadata reçue :", session.metadata); // 👈 AJOUT ICI
+
+  const email = session.customer_email;
+  const description = session.metadata?.description || "Commande";
+  const clientLink = session.metadata?.lien_videos || "Aucun lien fourni";
+
+  sendConfirmationEmail(email, description, clientLink);
+  console.log("✅ Paiement confirmé — email envoyé à", email);
+}
+
 
   response.status(200).json({ received: true });
 });
