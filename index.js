@@ -4,7 +4,8 @@ require("dotenv").config();
 // 📦 Imports
 const express = require("express");
 const cors = require("cors");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // sécurisé via .env
+const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
+const nodemailer = require("nodemailer");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
 const Order = require("./models/Order"); // Ton modèle de commande
