@@ -1,14 +1,10 @@
-// 🌐 Chargement des variables d'environnement
-require("dotenv").config();
-
 // 📦 Imports
 const express = require("express");
 const cors = require("cors");
 const stripe = require("stripe")("sk_test_51ReEylRpNiXov6ulVjrbcbkw2fBADIc6Ht5rXt0iD89V0keFbMMSBQepEjWWKjhgtNgzYrYLO0SjPBPN3XangDNd00QDwrCnkr");
 const nodemailer = require("nodemailer");
-const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
-const Order = require("./models/Order"); // Ton modèle de commande
+const Order = require("./models/Order");
 
 const app = express();
 
@@ -20,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // 🔌 Connexion à MongoDB
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect("mongodb+srv://...") // Mets ici directement ta Mongo URI si tu veux éviter `.env`
   .then(() => console.log("✅ Connecté à MongoDB"))
   .catch((err) => console.error("❌ Erreur MongoDB :", err));
 
