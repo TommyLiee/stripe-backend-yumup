@@ -14,12 +14,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ?? Connexion à MongoDB
+// ?? Connexion Ã  MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('? Connecté à MongoDB'))
+  .then(() => console.log('? ConnectÃ© Ã  MongoDB'))
   .catch(err => console.error('? Erreur MongoDB :', err));
 
-// ?? Modèle utilisateur
+// ?? ModÃ¨le utilisateur
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String
@@ -29,11 +29,11 @@ const User = mongoose.model('User', userSchema);
 // ?? Middleware d'authentification
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Accès refusé, token manquant" });
+  if (!token) return res.status(401).json({ error: "AccÃ¨s refusÃ©, token manquant" });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // On stocke tout l'objet décodé
+    req.user = decoded; // On stocke tout l'objet dÃ©codÃ©
     next();
   } catch (err) {
     res.status(401).json({ error: "Token invalide" });
@@ -47,10 +47,10 @@ app.post('/register', async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = new User({ email, password: hashed });
     await user.save();
-    res.json({ message: "? Utilisateur créé avec succès" });
+    res.json({ message: "? Utilisateur crÃ©Ã© avec succÃ¨s" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Erreur lors de la création" });
+    res.status(500).json({ error: "Erreur lors de la crÃ©ation" });
   }
 });
 
@@ -59,7 +59,7 @@ app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: "Utilisateur non trouvé" });
+    if (!user) return res.status(401).json({ error: "Utilisateur non trouvÃ©" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -77,7 +77,7 @@ app.get('/profile', authenticateToken, (req, res) => {
   res.json({ message: `Bienvenue, utilisateur ${req.user.userId}` });
 });
 
-// ?? Créer une commande
+// ?? CrÃ©er une commande
 app.post('/create-order', authenticateToken, async (req, res) => {
   const { title, swissLink } = req.body;
   try {
@@ -89,13 +89,41 @@ app.post('/create-order', authenticateToken, async (req, res) => {
       messages: []
     });
     await order.save();
-    res.json({ message: '? Commande créée avec succès' });
+    res.json({ message: '? Commande crÃ©Ã©e avec succÃ¨s' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la création de commande' });
+    res.status(500).json({ error: 'Erreur lors de la crÃ©ation de commande' });
   }
 });
 
 // ?? Lancement serveur
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`?? API lancée sur le port ${PORT}`));
+app.listen(PORT, () => console.log(`?? API lancÃ©e sur le port ${PORT}`));
+
+// ğŸ” Middleware de vÃ©rification du token
+const jwt = require("jsonwebtoken");
+
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Token manquant" });
+
+  try {
+    const decoded = jwt.verify(token, "secret"); // remplace "secret" par ta vraie clÃ© si besoin
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: "Token invalide" });
+  }
+}
+
+// ğŸ“¦ Route pour rÃ©cupÃ©rer les commandes du user connectÃ©
+app.get("/orders", authMiddleware, async (req, res) => {
+  try {
+    const orders = await Order.find({ email: req.user.email }).sort({ date: -1 });
+    res.json(orders);
+  } catch (err) {
+    console.error("âŒ Erreur rÃ©cupÃ©ration commandes :", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
