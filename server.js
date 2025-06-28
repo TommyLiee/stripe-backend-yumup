@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 // 🔌 Connexion MongoDB (clé fixée ici)
-mongoose.connect("mongodb+srv://<TON_URL_MONGODB>")
+mongoose.connect("mongodb+srv://admin:admin123@henryagency.nrvabdb.mongodb.net/?retryWrites=true&w=majority&appName=HenryAgency")
   .then(() => console.log("✅ Connecté à MongoDB"))
   .catch(err => console.error("❌ Erreur MongoDB :", err));
 
