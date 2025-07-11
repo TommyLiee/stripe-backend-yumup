@@ -1,18 +1,13 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-  // Soit userId, soit email (ou les deux si tu veux lier à un compte)
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   email: { type: String, required: true },
+  title: { type: String, required: true },
+  swissLink: { type: String },
   total: { type: Number, required: true },
-  date: { type: Date, default: Date.now },
   status: { type: String, default: 'en attente' },
-
-  details: {
-    description: { type: String },
-    lien_videos: { type: String }
-  },
-
-  // Optionnel : si tu veux garder le système de discussion
+  date: { type: Date, default: Date.now },
   messages: [
     {
       sender: String,
@@ -22,6 +17,4 @@ const orderSchema = new mongoose.Schema({
   ]
 });
 
-const Order = mongoose.model('Order', orderSchema);
-
-module.exports = Order;
+module.exports = mongoose.model('Order', orderSchema);
