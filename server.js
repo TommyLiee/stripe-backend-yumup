@@ -1,4 +1,4 @@
-// ✅ server.js (henryagency-auth-backend)
+// 📦 Imports
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -10,19 +10,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ MongoDB Connection
+// 🔌 Connexion MongoDB
 mongoose.connect("mongodb+srv://admin:admin123@henryagency.nrvabdb.mongodb.net/?retryWrites=true&w=majority&appName=HenryAgency")
   .then(() => console.log("✅ Connecté à MongoDB"))
   .catch(err => console.error("❌ Erreur MongoDB :", err));
 
-// ✅ User Model
+// 👤 Modèle utilisateur (simple)
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String
 });
 const User = mongoose.model('User', userSchema);
 
-// ✅ Auth Middleware
+// 🔐 Middleware d'authentification
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token manquant" });
@@ -36,7 +36,7 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// ✅ Register
+// 📝 Inscription
 app.post('/register', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -50,7 +50,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// ✅ Login
+// 🔑 Connexion
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -68,7 +68,12 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ✅ Create Order
+// 👤 Route profil
+app.get('/profile', authMiddleware, (req, res) => {
+  res.json({ message: `Bienvenue utilisateur ${req.user.email}` });
+});
+
+// 📦 Créer une commande (statut "en attente")
 app.post('/create-order', authMiddleware, async (req, res) => {
   const { title, swissLink } = req.body;
   try {
@@ -78,18 +83,18 @@ app.post('/create-order', authMiddleware, async (req, res) => {
       title,
       swissLink,
       status: 'en attente',
-      total: 0, // Stripe set this later
+      total: 0, // Stripe définira le vrai montant
       messages: []
     });
     await order.save();
     res.json({ message: '✅ Commande créée avec succès' });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Erreur création commande :", err);
     res.status(500).json({ error: 'Erreur création commande' });
   }
 });
 
-// ✅ Get Orders
+// 📬 Liste des commandes du client
 app.get("/orders", authMiddleware, async (req, res) => {
   try {
     const orders = await Order.find({ email: req.user.email }).sort({ date: -1 });
@@ -100,6 +105,6 @@ app.get("/orders", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Start server
+// 🚀 Lancement serveur
 const PORT = 5000;
-app.listen(PORT, () => console.log(`🚀 API lancée sur le port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Backend Stripe (auth + commandes) lancé sur le port ${PORT}`));
