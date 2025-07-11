@@ -1,4 +1,4 @@
-// 📦 Imports
+// ✅ server.js (henryagency-auth-backend)
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -10,25 +10,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔌 Connexion MongoDB (clé fixée ici)
+// ✅ MongoDB Connection
 mongoose.connect("mongodb+srv://admin:admin123@henryagency.nrvabdb.mongodb.net/?retryWrites=true&w=majority&appName=HenryAgency")
   .then(() => console.log("✅ Connecté à MongoDB"))
   .catch(err => console.error("❌ Erreur MongoDB :", err));
 
-// 👤 Modèle utilisateur
+// ✅ User Model
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String
 });
 const User = mongoose.model('User', userSchema);
 
-// 🔐 Middleware d'authentification
+// ✅ Auth Middleware
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token manquant" });
 
   try {
-    const decoded = jwt.verify(token, "henry_secret"); // clé fixe
+    const decoded = jwt.verify(token, "henry_secret");
     req.user = decoded;
     next();
   } catch {
@@ -36,7 +36,7 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// 📝 Inscription
+// ✅ Register
 app.post('/register', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -50,7 +50,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// 🔑 Connexion
+// ✅ Login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -68,12 +68,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// 👤 Route de profil protégée
-app.get('/profile', authMiddleware, (req, res) => {
-  res.json({ message: `Bienvenue utilisateur ${req.user.email}` });
-});
-
-// 📦 Créer une commande
+// ✅ Create Order
 app.post('/create-order', authMiddleware, async (req, res) => {
   const { title, swissLink } = req.body;
   try {
@@ -83,6 +78,7 @@ app.post('/create-order', authMiddleware, async (req, res) => {
       title,
       swissLink,
       status: 'en attente',
+      total: 0, // Stripe set this later
       messages: []
     });
     await order.save();
@@ -93,7 +89,7 @@ app.post('/create-order', authMiddleware, async (req, res) => {
   }
 });
 
-// 📬 Liste des commandes du client
+// ✅ Get Orders
 app.get("/orders", authMiddleware, async (req, res) => {
   try {
     const orders = await Order.find({ email: req.user.email }).sort({ date: -1 });
@@ -104,6 +100,6 @@ app.get("/orders", authMiddleware, async (req, res) => {
   }
 });
 
-// 🚀 Lancement serveur
+// ✅ Start server
 const PORT = 5000;
 app.listen(PORT, () => console.log(`🚀 API lancée sur le port ${PORT}`));
