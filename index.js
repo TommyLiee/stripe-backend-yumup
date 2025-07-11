@@ -126,6 +126,51 @@ app.post("/webhook", (req, res) => {
       }
     });
 
+    const express = require("express");
+const router = express.Router();
+const stripe = require("stripe")("sk_test_..."); // ta vraie clé secrète
+const Order = require("./models/Order"); // Ton modèle de commande
+const bodyParser = require("body-parser");
+
+router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("❌ Erreur de signature webhook :", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // 🎯 Paiement réussi
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const customerEmail = session.customer_email;
+
+    try {
+      const updated = await Order.findOneAndUpdate(
+        { email: customerEmail },
+        { status: "payée" },
+        { new: true }
+      );
+
+      if (updated) {
+        console.log(`✅ Commande mise à jour comme payée pour ${customerEmail}`);
+      } else {
+        console.warn(`⚠️ Aucune commande trouvée pour ${customerEmail}`);
+      }
+    } catch (err) {
+      console.error("❌ Erreur mise à jour commande :", err);
+    }
+  }
+
+  res.status(200).send();
+});
+
+module.exports = router;
+
+
     newOrder.save()
       .then(() => console.log("✅ Commande enregistrée dans MongoDB"))
       .catch((err) => console.error("❌ Échec enregistrement Mongo :", err));
