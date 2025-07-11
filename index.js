@@ -7,20 +7,14 @@ const mongoose = require("mongoose");
 const Order = require("./models/Order");
 
 const app = express();
+const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
 
-// ⚠️ Stripe Webhook a besoin du body brut
-app.use("/webhook", express.raw({ type: "application/json" }));
-
-// 🌍 Middlewares globaux
-app.use(cors());
-app.use(express.json());
-
-// 🔌 Connexion MongoDB (clé en dur)
+// 🧠 Connexion MongoDB
 mongoose.connect("mongodb+srv://admin:admin123@henryagency.nrvabdb.mongodb.net/?retryWrites=true&w=majority&appName=HenryAgency")
   .then(() => console.log("✅ Connecté à MongoDB"))
   .catch((err) => console.error("❌ Erreur MongoDB :", err));
 
-// 📧 Nodemailer (clé en dur)
+// 📧 Nodemailer setup
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -29,7 +23,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// ✅ Fonction pour envoyer l'e-mail de confirmation
 function sendConfirmationEmail(email, description, clientLink) {
   const mailOptions = {
     from: '"HenryAgency" <tr33fle@gmail.com>',
@@ -52,12 +45,19 @@ function sendConfirmationEmail(email, description, clientLink) {
   });
 }
 
-// 🔁 Route test
+// 🧊 Middleware global
+app.use(cors());
+app.use(express.json());
+
+// ⚠️ Webhook Stripe = body brut !
+app.use("/webhook", express.raw({ type: "application/json" }));
+
+// 🔁 Route de test
 app.get("/", (req, res) => {
-  res.send("✅ Backend Stripe & Mongo opérationnel !");
+  res.send("✅ Backend Stripe opérationnel !");
 });
 
-// 💳 Création session Stripe
+// 💳 Création de session Stripe
 app.post("/create-checkout-session", async (req, res) => {
   const { email, amount, description, clientLink } = req.body;
 
@@ -78,8 +78,8 @@ app.post("/create-checkout-session", async (req, res) => {
       }],
       customer_email: email,
       metadata: {
-        lien_videos: clientLink || "aucun lien",
-        description: description || "Commande"
+        description: description || "Commande",
+        lien_videos: clientLink || "aucun lien"
       },
       success_url: "https://henryagency.webflow.io/success",
       cancel_url: "https://henryagency.webflow.io/cancel"
@@ -92,17 +92,15 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// 🧲 Webhook Stripe
-const endpointSecret = "whsec_Ivwzv4IJs8dhuMo59f50K59ZrB2rYD82";
-
-app.post("/webhook", (req, res) => {
+// 📩 Webhook Stripe : mise à jour du statut commande
+app.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
-    console.error("❌ Erreur Webhook :", err.message);
+    console.error("❌ Erreur Webhook Stripe :", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -113,74 +111,36 @@ app.post("/webhook", (req, res) => {
     const clientLink = session.metadata?.lien_videos || "aucun lien";
     const total = session.amount_total ? session.amount_total / 100 : 0;
 
-    sendConfirmationEmail(email, description, clientLink);
-
-    const newOrder = new Order({
-      email,
-      total,
-      date: new Date(),
-      status: "payée",
-      details: {
-        lien_videos: clientLink,
-        description
-      }
-    });
-
-    const express = require("express");
-const router = express.Router();
-const stripe = require("stripe")("sk_test_..."); // ta vraie clé secrète
-const Order = require("./models/Order"); // Ton modèle de commande
-const bodyParser = require("body-parser");
-
-router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error("❌ Erreur de signature webhook :", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // 🎯 Paiement réussi
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const customerEmail = session.customer_email;
-
     try {
+      // ✅ Mise à jour de la commande existante
       const updated = await Order.findOneAndUpdate(
-        { email: customerEmail },
-        { status: "payée" },
+        { email: email, status: "en attente" }, // sécurise la MAJ
+        {
+          status: "payée",
+          total,
+          details: {
+            description,
+            lien_videos: clientLink
+          }
+        },
         { new: true }
       );
 
       if (updated) {
-        console.log(`✅ Commande mise à jour comme payée pour ${customerEmail}`);
+        console.log(`✅ Commande mise à jour comme payée pour ${email}`);
+        sendConfirmationEmail(email, description, clientLink);
       } else {
-        console.warn(`⚠️ Aucune commande trouvée pour ${customerEmail}`);
+        console.warn(`⚠️ Aucune commande trouvée à mettre à jour pour ${email}`);
       }
     } catch (err) {
-      console.error("❌ Erreur mise à jour commande :", err);
+      console.error("❌ Erreur MongoDB mise à jour :", err);
     }
-  }
-
-  res.status(200).send();
-});
-
-module.exports = router;
-
-
-    newOrder.save()
-      .then(() => console.log("✅ Commande enregistrée dans MongoDB"))
-      .catch((err) => console.error("❌ Échec enregistrement Mongo :", err));
   }
 
   res.status(200).json({ received: true });
 });
 
 // 🚀 Serveur
-const PORT = 4242;
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
+app.listen(4242, () => {
+  console.log("🚀 Serveur Stripe + Webhook lancé sur le port 4242");
 });
