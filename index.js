@@ -82,8 +82,8 @@ app.post("/create-checkout-session", async (req, res) => {
         description: description || "Commande",
         lien_videos: clientLink || "aucun lien"
       },
-      success_url: "https://henryagency.webflow.io/success",
-      cancel_url: "https://henryagency.webflow.io/cancel"
+      success_url: "https://tests-1c0c5e-d0ae5cc8df195a1a1628634fd5.webflow.io/dashboard",
+      cancel_url: "https://tests-1c0c5e-d0ae5cc8df195a1a1628634fd5.webflow.io/"
     });
 
     res.json({ id: session.id });
