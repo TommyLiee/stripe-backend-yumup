@@ -7,6 +7,11 @@ const orderSchema = new mongoose.Schema({
   swissLink: { type: String },
   total: { type: Number, required: true },
   status: { type: String, default: 'en attente' },
+  state: {
+    type: String,
+    enum: ['en cours', 'en pause', 'terminée'],
+    default: 'en cours'
+  },
   date: { type: Date, default: Date.now },
   messages: [
     {
